@@ -4,21 +4,14 @@
 // guarda en la columna "Archivo adjunto" del Google Sheet.
 
 const { google } = require('googleapis');
-const path = require('path');
+const { crearGoogleAuth } = require('./googleAuth');
 const { Readable } = require('stream');
 
 let driveClientPromise = null;
 
 function getDriveClient() {
   if (!driveClientPromise) {
-    const keyFile = path.resolve(
-      process.env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE || './google-service-account.json'
-    );
-
-    const auth = new google.auth.GoogleAuth({
-      keyFile,
-      scopes: ['https://www.googleapis.com/auth/drive'],
-    });
+    const auth = crearGoogleAuth(['https://www.googleapis.com/auth/drive']);
 
     driveClientPromise = auth.getClient().then(
       (authClient) => google.drive({ version: 'v3', auth: authClient })
