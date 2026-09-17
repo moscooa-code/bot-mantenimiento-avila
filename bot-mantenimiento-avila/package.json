@@ -1,0 +1,22 @@
+{
+  "name": "bot-mantenimiento-avila",
+  "version": "1.0.0",
+  "description": "Bot de WhatsApp para que los operadores de Transportes Avila reporten fallas mecanicas. Recibe mensajes via WhatsApp Cloud API (Meta) y los guarda automaticamente en un Google Sheet (Bitacora de Fallas Mecanicas).",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "googleapis": "^144.0.0"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}
