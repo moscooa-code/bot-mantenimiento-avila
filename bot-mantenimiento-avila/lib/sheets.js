@@ -19,10 +19,16 @@ function hojas() {
 async function agregarFalla({ eco, operador, telefono, categoria, descripcion, prioridad }) {
   const pestana = process.env.GOOGLE_SHEET_TAB_NAME || 'Untitled';
   const fila = [fechaMx(), eco || '', operador || '', telefono || '', categoria, descripcion, prioridad, '', 'Nuevo'];
-  await hojas().spreadsheets.values.append({
-    spreadsheetId: process.env.GOOGLE_SHEET_ID || process.env.GOOGLE_SHEETS_ID, // en Railway se llama GOOGLE_SHEET_ID
-    range: `'${pestana}'!I5:Q`,
-    valueInputOption: 'USER_ENTERED', insertDataOption: 'INSERT_ROWS',
+  // No se usa "append": Google adivina la tabla y en esta hoja lo escribía corrido a las columnas Q:Y.
+  // Se busca la última fila con fecha en la columna I y se escribe exacto en I:Q de la fila siguiente.
+  const id = process.env.GOOGLE_SHEET_ID || process.env.GOOGLE_SHEETS_ID; // en Railway se llama GOOGLE_SHEET_ID
+  const col = await hojas().spreadsheets.values.get({ spreadsheetId: id, range: `'${pestana}'!I1:I` });
+  const usadas = (col.data.values || []).length;
+  const n = Math.max(5, usadas + 1);
+  await hojas().spreadsheets.values.update({
+    spreadsheetId: id,
+    range: `'${pestana}'!I${n}:Q${n}`,
+    valueInputOption: 'USER_ENTERED',
     requestBody: { values: [fila] },
   });
 }
