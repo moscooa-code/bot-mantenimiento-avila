@@ -55,6 +55,30 @@ app.post('/webhook', async (req, res) => {
   } catch (err) { console.error('webhook', err); }
 });
 
+// Cada minuto: avisos de autorizaciones pendientes que Geo dejó en cola.
+// Plantilla de Meta (variables: {{1}} nombre, {{2}} qué, {{3}} cuánto, {{4}} quién lo pide, {{5}} referencia).
+let enviandoAvisos = false;
+async function mandarAvisos() {
+  if (enviandoAvisos || !geo.configurado()) return;
+  enviandoAvisos = true;
+  try {
+    const avisos = await geo.avisosPendientes();
+    for (const a of avisos) {
+      const params = [a.NOMBRE, a.QUE, a.CUANTO, a.PIDE, a.REF];
+      let ok = await wa.plantilla(a.TELEFONO, process.env.AVISO_PLANTILLA || 'aviso_autorizacion', process.env.AVISO_IDIOMA || 'es_MX', params);
+      let error = ok ? null : wa.ultimoError();
+      if (!ok) { // Respaldo: texto normal (solo llega si esa persona le escribió al bot en las últimas 24 h)
+        ok = await wa.texto(a.TELEFONO, `Hola ${a.NOMBRE}, tienes por autorizar en Geo: ${a.QUE} por ${a.CUANTO}, lo pide ${a.PIDE} (${a.REF}). Ábrelo aquí: https://geo.transportesavila.mx/autorizaciones.php`);
+      }
+      await geo.avisoResultado(a.ID_AVISO, ok, error).catch(e => console.error('aviso resultado', e.message));
+    }
+  } catch (e) { console.error('avisos', e.message); }
+  finally { enviandoAvisos = false; }
+}
+
 const PUERTO = process.env.PORT || 3000;
-if (require.main === module) app.listen(PUERTO, () => console.log('Bot escuchando en', PUERTO));
-module.exports = { app, flujo };
+if (require.main === module) {
+  app.listen(PUERTO, () => console.log('Bot escuchando en', PUERTO));
+  setInterval(mandarAvisos, 60 * 1000);
+}
+module.exports = { app, flujo, mandarAvisos };

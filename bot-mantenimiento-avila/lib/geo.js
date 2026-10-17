@@ -24,4 +24,15 @@ async function reporte(datos, media) {
   }
   return llamar(f);
 }
-module.exports = { contexto, reporte, configurado };
+// Avisos de "tienes algo por autorizar" que Geo deja en cola.
+async function avisosPendientes() {
+  const f = new FormData(); f.append('accion', 'avisos_pendientes');
+  const j = await llamar(f);
+  return j.avisos || [];
+}
+async function avisoResultado(id, ok, error) {
+  const f = new FormData(); f.append('accion', 'aviso_resultado'); f.append('id', String(id)); f.append('ok', ok ? '1' : '0');
+  if (!ok && error) f.append('error', String(error).slice(0, 250));
+  return llamar(f);
+}
+module.exports = { contexto, reporte, configurado, avisosPendientes, avisoResultado };
