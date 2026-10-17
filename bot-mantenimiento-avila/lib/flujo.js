@@ -20,6 +20,31 @@ function crearFlujo({ wa, geo, sheets, ahora = () => Date.now() }) {
   const limpiar = () => { const t = ahora(); for (const [k, v] of estados) if (t - v.ts > TTL_MS) estados.delete(k); };
   setInterval(limpiar, 5 * 60 * 1000).unref?.();
 
+  // Recordatorio: si una conversación queda a medias 10 minutos, se le avisa una vez al operador.
+  const RECORDAR_MS = 10 * 60 * 1000;
+  async function recordar() {
+    const t = ahora();
+    for (const e of estados.values()) {
+      if (e.recordado || e.paso === 'inicio' || t - e.ts < RECORDAR_MS) continue;
+      e.recordado = true;
+      const que = e.cat ? (porId[e.cat] || {}).t : (e.media ? 'tu foto' : 'tu reporte');
+      await wa.texto(e.tel, `Te quedó a medias ${que ? 'el reporte de ' + que : 'un reporte'}. Contesta la última pregunta para que quede registrado, o escribe "cancelar".` +
+        (e.media ? ' Tu foto ya está guardada, no se pierde.' : '')).catch(err => console.error('recordatorio', err.message));
+    }
+  }
+  setInterval(() => { recordar().catch(() => {}); }, 60 * 1000).unref?.();
+
+  // La foto se guarda en Geo en cuanto llega (provisional); si el operador termina, el reporte completo la reemplaza.
+  async function guardarProvisional(e) {
+    if (!geo.configurado() || !e.media) return;
+    try {
+      const media = await wa.descargarMedia(e.media.id);
+      await geo.reporte({ categoria: 'otro', provisional: 1, telefono: e.tel, nombre_whatsapp: e.nombre, media_id: e.media.id,
+        texto: 'Foto recibida por el bot; el operador todavía no termina de contestar.' + (e.texto ? ' Nota: ' + e.texto : ''),
+        fecha_hora: new Date(ahora()).toISOString() }, media);
+    } catch (err) { console.error('provisional', err.message); }
+  }
+
   const nuevo = (tel, nombre) => ({ tel, nombre, paso: 'inicio', media: null, texto: '', cat: null, viaje: null, folio: '', ts: ahora() });
   const guardar = e => { e.ts = ahora(); estados.set(e.tel, e); return e; };
 
@@ -117,8 +142,9 @@ function crearFlujo({ wa, geo, sheets, ahora = () => Date.now() }) {
 
     if (msg.tipo === 'media') {
       // Un archivo nuevo siempre empieza un reporte nuevo, salvo que esté esperando justo la foto del acuse.
-      if (e.paso === 'foto') { e.media = msg.media; if (txt) e.texto = txt; return siguienteDato(e); }
+      if (e.paso === 'foto') { e.media = msg.media; if (txt) e.texto = txt; guardarProvisional(e); return siguienteDato(e); }
       e = nuevo(tel, nombre); e.media = msg.media; if (txt) e.texto = txt;
+      guardarProvisional(e);
       return menuCategorias(e);
     }
     if (msg.tipo === 'lista' || msg.tipo === 'boton') {
