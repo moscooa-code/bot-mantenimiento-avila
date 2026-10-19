@@ -65,10 +65,15 @@ async function mandarAvisos() {
     const avisos = await geo.avisosPendientes();
     for (const a of avisos) {
       const params = [a.NOMBRE, a.QUE, a.CUANTO, a.PIDE, a.REF];
-      let ok = await wa.plantilla(a.TELEFONO, process.env.AVISO_PLANTILLA || 'aviso_autorizacion', process.env.AVISO_IDIOMA || 'es_MX', params);
+      // ORIGEN 'pago' = aviso al coordinador de que ya se pagó/aplicó (otra plantilla); lo demás = autorización pendiente.
+      const esPago = a.ORIGEN === 'pago';
+      const plantilla = esPago ? (process.env.AVISO_PAGO_PLANTILLA || 'aviso_pago_viaje') : (process.env.AVISO_PLANTILLA || 'aviso_autorizacion');
+      let ok = await wa.plantilla(a.TELEFONO, plantilla, process.env.AVISO_IDIOMA || 'es_MX', params);
       let error = ok ? null : wa.ultimoError();
       if (!ok) { // Respaldo: texto normal (solo llega si esa persona le escribió al bot en las últimas 24 h)
-        ok = await wa.texto(a.TELEFONO, `Hola ${a.NOMBRE}, tienes por autorizar en Geo: ${a.QUE} por ${a.CUANTO}, lo pide ${a.PIDE} (${a.REF}). Ábrelo aquí: https://geo.transportesavila.mx/autorizaciones.php`);
+        ok = await wa.texto(a.TELEFONO, esPago
+          ? `Hola ${a.NOMBRE}, ${a.QUE}: ${a.CUANTO}. Lo registró ${a.PIDE} (${a.REF}).`
+          : `Hola ${a.NOMBRE}, tienes por autorizar en Geo: ${a.QUE} por ${a.CUANTO}, lo pide ${a.PIDE} (${a.REF}). Ábrelo aquí: https://geo.transportesavila.mx/autorizaciones.php`);
       }
       await geo.avisoResultado(a.ID_AVISO, ok, error).catch(e => console.error('aviso resultado', e.message));
     }
