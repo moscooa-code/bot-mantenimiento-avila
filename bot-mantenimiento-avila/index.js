@@ -65,9 +65,9 @@ async function mandarAvisos() {
     const avisos = await geo.avisosPendientes();
     for (const a of avisos) {
       const params = [a.NOMBRE, a.QUE, a.CUANTO, a.PIDE, a.REF];
-      // ORIGEN 'pago' = aviso al coordinador de que ya se pagó/aplicó (otra plantilla); lo demás = autorización pendiente.
+      // ORIGEN 'pago' = aviso al coordinador de que ya se pagó/aplicó (otra plantilla); lo demás = autorización pendiente (aviso_geo_autorizacion; la vieja aviso_autorizacion la rechazó Meta el 16-oct).
       const esPago = a.ORIGEN === 'pago';
-      const plantilla = esPago ? (process.env.AVISO_PAGO_PLANTILLA || 'aviso_pago_viaje') : (process.env.AVISO_PLANTILLA || 'aviso_autorizacion');
+      const plantilla = esPago ? (process.env.AVISO_PAGO_PLANTILLA || 'aviso_pago_viaje') : (process.env.AVISO_PLANTILLA || 'aviso_geo_autorizacion');
       let ok = await wa.plantilla(a.TELEFONO, plantilla, process.env.AVISO_IDIOMA || 'es_MX', params);
       let error = ok ? null : wa.ultimoError();
       if (!ok) { // Respaldo: texto normal (solo llega si esa persona le escribió al bot en las últimas 24 h)
